@@ -1,0 +1,14 @@
+{
+    "stationId": 1,
+    "stationName": "Default Station",
+    "measurementInterval": 60000,
+    "calibrationOffset": 0.0,
+    "dateTime": {
+      "year": 2024,
+      "month": 1,
+      "day": 1,
+      "hour": 0,
+      "minute": 0,
+      "second": 0
+    }
+  }
