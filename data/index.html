@@ -1,36 +1,22 @@
 <!DOCTYPE html>
-<html>
+<html lang="en">
 <head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Water Level Monitor</title>
     <style>
-        :root {
-            --primary-color: #1a73e8;
-            --primary-dark: #1557b0;
-            --background-color: #f0f2f5;
-            --card-background: white;
-            --text-primary: #3c4043;
-            --text-secondary: #5f6368;
-            --border-color: #dadce0;
-            --success-bg: #d4edda;
-            --success-text: #155724;
-            --error-bg: #f8d7da;
-            --error-text: #721c24;
-            --danger-color: #dc3545;
-            --danger-dark: #bd2130;
-        }
-
+        /* Basic Reset */
         * {
-            box-sizing: border-box;
             margin: 0;
             padding: 0;
+            box-sizing: border-box;
         }
 
         body {
             font-family: Arial, sans-serif;
-            background-color: var(--background-color);
-            color: var(--text-primary);
             line-height: 1.6;
             padding: 20px;
+            background-color: #f0f2f5;
         }
 
         .container {
@@ -38,215 +24,126 @@
             margin: 0 auto;
         }
 
-        .card {
-            background-color: var(--card-background);
-            border-radius: 8px;
-            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
-            padding: 20px;
-            margin-bottom: 20px;
-        }
-
-        h1 {
-            color: var(--primary-color);
-            margin-bottom: 30px;
-            text-align: center;
-        }
-
-        h2 {
-            color: var(--primary-color);
-            margin-bottom: 20px;
-            font-size: 1.5em;
-        }
-
         .grid {
             display: grid;
-            grid-template-columns: repeat(auto-fit, minmax(350px, 1fr));
+            grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
             gap: 20px;
             margin-bottom: 20px;
         }
 
-        .current-status {
-            text-align: center;
+        .card {
+            background: white;
+            border-radius: 8px;
             padding: 20px;
-        }
-
-        .current-level {
-            font-size: 48px;
-            font-weight: bold;
-            color: var(--primary-color);
-            margin-bottom: 10px;
-            animation: pulse 2s infinite;
-        }
-
-        @keyframes pulse {
-            0% { transform: scale(1); }
-            50% { transform: scale(1.05); }
-            100% { transform: scale(1); }
-        }
-
-        .datetime-display {
-            font-size: 18px;
-            color: var(--text-secondary);
+            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
         }
 
         .form-group {
             margin-bottom: 15px;
         }
 
-        label {
+        .form-group label {
             display: block;
             margin-bottom: 5px;
             font-weight: bold;
-            color: var(--text-primary);
         }
 
-        input[type="text"],
-        input[type="number"],
-        input[type="date"],
-        input[type="time"] {
+        .form-group input {
             width: 100%;
-            padding: 8px 12px;
-            border: 1px solid var(--border-color);
+            padding: 8px;
+            border: 1px solid #ddd;
             border-radius: 4px;
-            font-size: 16px;
-            transition: border-color 0.3s;
         }
 
-        input:focus {
-            outline: none;
-            border-color: var(--primary-color);
-            box-shadow: 0 0 0 2px rgba(26, 115, 232, 0.2);
-        }
-
-        button {
-            background-color: var(--primary-color);
+        .btn {
+            background: #007bff;
             color: white;
             border: none;
             padding: 10px 20px;
             border-radius: 4px;
             cursor: pointer;
-            font-size: 16px;
-            transition: background-color 0.2s, transform 0.1s;
-            width: 100%;
+            font-size: 14px;
         }
 
-        button:hover {
-            background-color: var(--primary-dark);
+        .btn:hover {
+            background: #0056b3;
         }
 
-        button:active {
-            transform: translateY(1px);
+        .btn-danger {
+            background: #dc3545;
         }
 
-        .danger {
-            background-color: var(--danger-color);
-        }
-
-        .danger:hover {
-            background-color: var(--danger-dark);
+        .btn-danger:hover {
+            background: #c82333;
         }
 
         .alert {
-            padding: 12px;
+            padding: 10px;
             border-radius: 4px;
             margin-bottom: 15px;
-            display: none;
-            animation: fadeIn 0.3s;
-        }
-
-        @keyframes fadeIn {
-            from { opacity: 0; transform: translateY(-10px); }
-            to { opacity: 1; transform: translateY(0); }
         }
 
         .alert-success {
-            background-color: var(--success-bg);
-            color: var(--success-text);
+            background: #d4edda;
+            color: #155724;
+            border: 1px solid #c3e6cb;
         }
 
-        .alert-error {
-            background-color: var(--error-bg);
-            color: var(--error-text);
+        .alert-danger {
+            background: #f8d7da;
+            color: #721c24;
+            border: 1px solid #f5c6cb;
+        }
+
+        .current-level {
+            font-size: 48px;
+            font-weight: bold;
+            color: #007bff;
+            text-align: center;
+            margin: 20px 0;
+        }
+
+        .datetime-display {
+            text-align: center;
+            color: #666;
+            margin-bottom: 20px;
         }
 
         .serial-monitor {
-            background-color: #202124;
-            color: #e8eaed;
-            padding: 15px;
+            background: #1e1e1e;
+            color: #fff;
+            padding: 10px;
             border-radius: 4px;
-            font-family: monospace;
-            height: 300px;
+            height: 200px;
             overflow-y: auto;
-            margin-top: 10px;
-            white-space: pre-wrap;
-            font-size: 14px;
-            line-height: 1.5;
+            font-family: monospace;
         }
 
-        .serial-monitor .log-entry {
-            border-bottom: 1px solid #333;
-            padding: 4px 0;
+        /* Graph styles */
+        .graph-container {
+            height: 300px;
+            margin-top: 20px;
         }
 
-        .serial-monitor .timestamp {
-            color: #888;
+        .graph-point {
+            fill: #007bff;
+            stroke: #007bff;
         }
 
-        .connected-devices {
-            list-style: none;
-            margin: 0;
-            padding: 0;
+        .graph-line {
+            stroke: #007bff;
+            stroke-width: 2;
+            fill: none;
         }
 
-        .connected-devices li {
-            padding: 10px 12px;
-            border-bottom: 1px solid var(--border-color);
-            display: flex;
-            align-items: center;
-            gap: 10px;
-            animation: fadeIn 0.3s;
-        }
-
-        .connected-devices li:last-child {
-            border-bottom: none;
-        }
-
-        .connected-devices li::before {
-            content: "•";
-            color: #4CAF50;
-            font-size: 24px;
-        }
-
-        .device-ip {
-            flex-grow: 1;
-        }
-
-        .btn-group {
-            display: flex;
-            gap: 10px;
-            margin-top: 10px;
-        }
-
-        .btn-group button {
-            flex: 1;
-        }
-
-        @media (max-width: 768px) {
-            body {
-                padding: 10px;
-            }
-
-            .grid {
-                grid-template-columns: 1fr;
-            }
-
-            .current-level {
-                font-size: 36px;
-            }
-
-            .btn-group {
-                flex-direction: column;
-            }
+        .tooltip {
+            position: absolute;
+            padding: 8px;
+            background: rgba(0,0,0,0.8);
+            color: white;
+            border-radius: 4px;
+            font-size: 12px;
+            pointer-events: none;
         }
     </style>
 </head>
@@ -256,365 +153,431 @@
         
         <div class="grid">
             <div class="card">
-                <div class="current-status">
-                    <div class="current-level" id="currentLevel">--</div>
-                    <div class="datetime-display" id="currentDateTime">--</div>
-                </div>
+                <h2>Current Status</h2>
+                <div id="currentLevel" class="current-level">--</div>
+                <div id="currentDateTime" class="datetime-display">--</div>
+                <div id="deviceUptime">Uptime: --</div>
+                <button id="restartBtn" class="btn btn-danger">Restart Device</button>
             </div>
 
             <div class="card">
                 <h2>Station Settings</h2>
                 <div id="settingsAlert" class="alert"></div>
-                <form id="stationSettings">
-                    <div class="form-group">
-                        <label>Station ID:</label>
-                        <input type="number" id="stationId" required min="1">
-                    </div>
-                    <div class="form-group">
-                        <label>Station Name:</label>
-                        <input type="text" id="stationName" required>
-                    </div>
-                    <div class="form-group">
-                        <label>Measurement Interval (ms):</label>
-                        <input type="number" id="interval" required min="1000" step="1000">
-                    </div>
-                    <button type="submit">Save Settings</button>
-                </form>
+                <div class="form-group">
+                    <label>Station ID:</label>
+                    <input type="number" id="stationId" min="1">
+                </div>
+                <div class="form-group">
+                    <label>Station Name:</label>
+                    <input type="text" id="stationName">
+                </div>
+                <div class="form-group">
+                    <label>Measurement Interval (seconds):</label>
+                    <input type="number" id="measurementInterval" min="12">
+                </div>
+                <button onclick="saveSettings()" class="btn">Save Settings</button>
             </div>
 
             <div class="card">
                 <h2>Calibration</h2>
                 <div id="calibrationAlert" class="alert"></div>
-                <form id="calibrationForm">
-                    <div class="form-group">
-                        <label>Calibration Offset (cm):</label>
-                        <input type="number" id="calibration" step="0.1" required>
-                    </div>
-                    <button type="submit">Save Calibration</button>
-                </form>
+                <div class="form-group">
+                    <label>Calibration Offset (cm):</label>
+                    <input type="number" id="calibrationOffset" step="0.1">
+                </div>
+                <button onclick="saveCalibration()" class="btn">Save Calibration</button>
             </div>
 
             <div class="card">
                 <h2>Date and Time</h2>
                 <div id="timeAlert" class="alert"></div>
-                <form id="timeSettings">
-                    <div class="form-group">
-                        <label>Date:</label>
-                        <input type="date" id="dateInput" required>
-                    </div>
-                    <div class="form-group">
-                        <label>Time:</label>
-                        <input type="time" id="timeInput" step="1" required>
-                    </div>
-                    <button type="submit">Set Date/Time</button>
-                </form>
+                <div class="form-group">
+                    <label>Date:</label>
+                    <input type="date" id="dateInput">
+                </div>
+                <div class="form-group">
+                    <label>Time:</label>
+                    <input type="time" id="timeInput" step="1">
+                </div>
+                <button onclick="setDateTime()" class="btn">Set Date/Time</button>
             </div>
         </div>
 
         <div class="card">
-            <h2>Data Management</h2>
-            <div id="dataAlert" class="alert"></div>
-            <div class="btn-group">
-                <button onclick="downloadData()">Download Data</button>
-                <button onclick="deleteData()" class="danger">Delete Data</button>
-            </div>
+            <h2>Water Level History</h2>
+            <div id="graphContainer" class="graph-container"></div>
         </div>
 
         <div class="grid">
             <div class="card">
                 <h2>Connected Devices</h2>
-                <ul id="connectedDevices" class="connected-devices">
-                    <li>Loading...</li>
-                </ul>
+                <ul id="connectedDevices"></ul>
             </div>
 
             <div class="card">
-                <h2>System Log</h2>
-                <div class="serial-monitor" id="serialMonitor"></div>
+                <h2>Data Management</h2>
+                <div id="dataAlert" class="alert"></div>
+                <div class="form-group">
+                    <button onclick="downloadData()" class="btn">Download Data</button>
+                    <button onclick="deleteData()" class="btn btn-danger">Delete Data</button>
+                </div>
             </div>
+        </div>
+
+        <div class="card">
+            <h2>System Log</h2>
+            <div id="serialMonitor" class="serial-monitor"></div>
         </div>
     </div>
 
     <script>
-        // Update frequencies
-        const LEVEL_UPDATE_INTERVAL = 1000;   // 1 second
-        const CONFIG_UPDATE_INTERVAL = 5000;   // 5 seconds
-        const SERIAL_UPDATE_INTERVAL = 1000;   // 1 second
-        const CLIENTS_UPDATE_INTERVAL = 5000;  // 5 seconds
-
-        // Helper function to show alerts
-        function showAlert(elementId, message, isError = false) {
+        // Utility functions
+        function showAlert(elementId, message, type) {
             const alert = document.getElementById(elementId);
+            alert.className = 'alert alert-' + type;
             alert.textContent = message;
-            alert.style.display = 'block';
-            alert.className = `alert ${isError ? 'alert-error' : 'alert-success'}`;
-            setTimeout(() => {
-                alert.style.display = 'none';
-            }, 3000);
+            setTimeout(() => alert.textContent = '', 3000);
         }
 
-        // Load and display configuration
-        function loadConfig() {
-            fetch('/config')
-                .then(response => response.json())
-                .then(config => {
-                    // Update form fields only if they don't match current values
-                    const fields = {
-                        'stationId': config.stationId,
-                        'stationName': config.stationName,
-                        'interval': config.measurementInterval,
-                        'calibration': config.calibrationOffset
-                    };
-
-                    for (const [id, value] of Object.entries(fields)) {
-                        const element = document.getElementById(id);
-                        if (element.value != value) {
-                            element.value = value;
-                        }
-                    }
-
-                    // Update datetime display
-                    const dt = config.dateTime;
-                    const datetime = new Date(
-                        dt.year, dt.month - 1, dt.day,
-                        dt.hour, dt.minute, dt.second
-                    );
-                    
-                    document.getElementById('currentDateTime').textContent = 
-                        datetime.toLocaleString();
-
-                    // Update date/time inputs
-                    document.getElementById('dateInput').value = 
-                        `${dt.year}-${String(dt.month).padStart(2, '0')}-${String(dt.day).padStart(2, '0')}`;
-                    document.getElementById('timeInput').value = 
-                        `${String(dt.hour).padStart(2, '0')}:${String(dt.minute).padStart(2, '0')}:${String(dt.second).padStart(2, '0')}`;
-                })
-                .catch(error => console.error('Error loading config:', error));
+        function formatDateTime(date) {
+            return date.toLocaleString();
         }
 
-        // Update intervals
-        setInterval(() => {
-            fetch('/currentLevel')
-                .then(response => response.text())
-                .then(data => {
-                    const element = document.getElementById('currentLevel');
-                    const newValue = `${parseFloat(data).toFixed(1)} cm`;
-                    if (element.textContent !== newValue) {
-                        element.textContent = newValue;
-                    }
-                })
-                .catch(error => console.error('Error updating level:', error));
-        }, LEVEL_UPDATE_INTERVAL);
+        let historicalData = [];
 
-        setInterval(loadConfig, CONFIG_UPDATE_INTERVAL);
-
-        // Format log entries
-        function formatLogEntry(entry) {
-            const parts = entry.split(': ');
-            if (parts.length === 2) {
-                return `<div class="log-entry">
-                    <span class="timestamp">${parts[0]}</span>: ${parts[1]}
-                </div>`;
-            }
-            return `<div class="log-entry">${entry}</div>`;
-        }
-
-
-        setInterval(() => fetch('/serial').then(r => r.text()).then(t => document.getElementById('serialMonitor').textContent = t), 1000);
-
-    
-
-        let lastDeviceList = '';
-        setInterval(() => {
-            fetch('/clients')
-                .then(response => response.json())
-                .then(data => {
-                    const deviceList = data.map(ip => 
-                        `<li><span class="device-ip">${ip}</span></li>`
-                    ).join('');
-                    
-                    if (deviceList !== lastDeviceList) {
-                        const deviceElement = document.getElementById('connectedDevices');
-                        deviceElement.innerHTML = deviceList || '<li>No devices connected</li>';
-                        lastDeviceList = deviceList;
-                    }
-                })
-                .catch(error => console.error('Error updating clients:', error));
-        }, CLIENTS_UPDATE_INTERVAL);
-
-        // Form submissions
-        document.getElementById('stationSettings').onsubmit = (e) => {
-            e.preventDefault();
-            const formData = new FormData();
-            formData.append('stationId', document.getElementById('stationId').value);
-            formData.append('stationName', document.getElementById('stationName').value);
-            formData.append('interval', document.getElementById('interval').value);
-            
-            fetch('/settings', {
-                method: 'POST',
-                body: formData
-            })
-            .then(response => {
-                if (response.ok) {
-                    showAlert('settingsAlert', 'Settings saved successfully');
-                } else {
-                    throw new Error('Failed to save settings');
-                }
-            })
-            .catch(error => {
-                showAlert('settingsAlert', error.message, true);
-            });
-        };
-
-        document.getElementById('calibrationForm').onsubmit = (e) => {
-            e.preventDefault();
-            const formData = new FormData();
-            formData.append('offset', document.getElementById('calibration').value);
-            
-            fetch('/calibration', {
-                method: 'POST',
-                body: formData
-            })
-            .then(response => {
-                if (response.ok) {
-                    showAlert('calibrationAlert', 'Calibration saved successfully');
-                } else {
-                    throw new Error('Failed to save calibration');
-                }
-            })
-            .catch(error => {
-                showAlert('calibrationAlert', error.message, true);
-            });
-        };
-
-        document.getElementById('timeSettings').onsubmit = (e) => {
-            e.preventDefault();
-            
+        // Data fetching functions
+        async function fetchCurrentLevel() {
             try {
-                const date = new Date(document.getElementById('dateInput').value + 
-                                    'T' + document.getElementById('timeInput').value);
-                
-                if (isNaN(date.getTime())) {
-                    throw new Error('Invalid date/time');
-                }
-                
-                const formData = new FormData();
-                formData.append('year', date.getFullYear());
-                formData.append('month', date.getMonth() + 1);
-                formData.append('day', date.getDate());
-                formData.append('hour', date.getHours());
-                formData.append('minute', date.getMinutes());
-                formData.append('second', date.getSeconds());
-                
-                fetch('/setTime', {
-                    method: 'POST',
-                    body: formData
-                })
-                .then(response => {
-                    if (response.ok) {
-                        showAlert('timeAlert', 'Time set successfully');
-                    } else {
-                        throw new Error('Failed to set time');
-                    }
-                })
-                .catch(error => {
-                    showAlert('timeAlert', error.message, true);
-                });
+                const response = await fetch('/currentLevel');
+                const level = await response.text();
+                document.getElementById('currentLevel').textContent = `${level} cm`;
+                document.getElementById('currentDateTime').textContent = formatDateTime(new Date());
             } catch (error) {
-                showAlert('timeAlert', 'Invalid date/time format', true);
+                console.error('Error fetching current level:', error);
             }
-        };
-
-        function downloadData() {
-            const timestamp = new Date().toISOString().replace(/[:.]/g, '-');
-            const a = document.createElement('a');
-            a.href = '/getData';
-            a.download = `water-level-data-${timestamp}.csv`;
-            document.body.appendChild(a);
-            a.click();
-            document.body.removeChild(a);
         }
 
-        function deleteData() {
-            if (confirm('Are you sure you want to delete all data? This action cannot be undone.')) {
-                fetch('/deleteData', { 
-                    method: 'POST'
-                })
-                .then(response => {
-                    if (response.ok) {
-                        showAlert('dataAlert', 'Data deleted successfully');
-                    } else {
-                        throw new Error('Failed to delete data');
-                    }
-                })
-                .catch(error => {
-                    showAlert('dataAlert', error.message, true);
+        async function fetchUptime() {
+            try {
+                const response = await fetch('/uptime');
+                const uptime = await response.text();
+                document.getElementById('deviceUptime').textContent = `Uptime: ${uptime}`;
+            } catch (error) {
+                console.error('Error fetching uptime:', error);
+            }
+        }
+
+        async function fetchConfig() {
+            try {
+                const response = await fetch('/config');
+                const config = await response.json();
+                document.getElementById('stationId').value = config.stationId;
+                document.getElementById('stationName').value = config.stationName;
+                document.getElementById('measurementInterval').value = config.measurementInterval / 1000; // Convert to seconds
+                document.getElementById('calibrationOffset').value = config.calibrationOffset;
+            } catch (error) {
+                console.error('Error fetching config:', error);
+            }
+        }
+
+        async function fetchConnectedDevices() {
+            try {
+                const response = await fetch('/clients');
+                const clients = await response.json();
+                const devicesList = document.getElementById('connectedDevices');
+                devicesList.innerHTML = clients.map(client => `<li>${client}</li>`).join('');
+            } catch (error) {
+                console.error('Error fetching connected devices:', error);
+            }
+        }
+
+        async function fetchSerialData() {
+            try {
+                const response = await fetch('/serial');
+                const data = await response.text();
+                const monitor = document.getElementById('serialMonitor');
+                monitor.textContent = data;
+                monitor.scrollTop = monitor.scrollHeight;
+            } catch (error) {
+                console.error('Error fetching serial data:', error);
+            }
+        }
+
+        // Action functions
+        async function saveSettings() {
+            const stationId = document.getElementById('stationId').value;
+            const stationName = document.getElementById('stationName').value;
+            const interval = document.getElementById('measurementInterval').value;
+
+            try {
+                const response = await fetch('/settings', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/x-www-form-urlencoded',
+                    },
+                    body: `stationId=${stationId}&stationName=${encodeURIComponent(stationName)}&interval=${interval}`
                 });
+
+                if (response.ok) {
+                    showAlert('settingsAlert', 'Settings saved successfully', 'success');
+                } else {
+                    showAlert('settingsAlert', 'Failed to save settings', 'danger');
+                }
+            } catch (error) {
+                showAlert('settingsAlert', 'Error saving settings', 'danger');
             }
         }
 
-        // Error handling for failed requests
-        window.addEventListener('unhandledrejection', function(event) {
-            console.error('Unhandled promise rejection:', event.reason);
-        });
+        async function saveCalibration() {
+            const offset = document.getElementById('calibrationOffset').value;
 
-        // Handle visibility change to pause/resume updates when tab is inactive
-        let updateIntervals = [];
-        
-        document.addEventListener('visibilitychange', function() {
-            if (document.hidden) {
-                // Clear all intervals when tab is hidden
-                updateIntervals.forEach(clearInterval);
-                updateIntervals = [];
-            } else {
-                // Restart all updates when tab becomes visible
-                updateIntervals.push(
-                    setInterval(() => {
-                        fetch('/currentLevel')
-                            .then(response => response.text())
-                            .then(data => {
-                                const element = document.getElementById('currentLevel');
-                                const newValue = `${parseFloat(data).toFixed(1)} cm`;
-                                if (element.textContent !== newValue) {
-                                    element.textContent = newValue;
-                                }
-                            })
-                            .catch(error => console.error('Error updating level:', error));
-                    }, LEVEL_UPDATE_INTERVAL)
-                );
+            try {
+                const response = await fetch('/calibration', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/x-www-form-urlencoded',
+                    },
+                    body: `offset=${offset}`
+                });
 
-                updateIntervals.push(
-                    setInterval(loadConfig, CONFIG_UPDATE_INTERVAL)
-                );
-
-                updateIntervals.push(
-                    setInterval(() => fetch('/serial').then(r => r.text()).then(t => document.getElementById('serialMonitor').textContent = t), 1000)
-                );
-
-
-                updateIntervals.push(
-                    setInterval(() => {
-                        fetch('/clients')
-                            .then(response => response.json())
-                            .then(data => {
-                                const deviceList = data.map(ip => 
-                                    `<li><span class="device-ip">${ip}</span></li>`
-                                ).join('');
-                                
-                                if (deviceList !== lastDeviceList) {
-                                    const deviceElement = document.getElementById('connectedDevices');
-                                    deviceElement.innerHTML = deviceList || '<li>No devices connected</li>';
-                                    lastDeviceList = deviceList;
-                                }
-                            })
-                            .catch(error => console.error('Error updating clients:', error));
-                    }, CLIENTS_UPDATE_INTERVAL)
-                );
+                if (response.ok) {
+                    showAlert('calibrationAlert', 'Calibration saved successfully', 'success');
+                } else {
+                    showAlert('calibrationAlert', 'Failed to save calibration', 'danger');
+                }
+            } catch (error) {
+                showAlert('calibrationAlert', 'Error saving calibration', 'danger');
             }
-        });
+        }
 
-        // Initial load
-        loadConfig();
+        async function setDateTime() {
+            const date = document.getElementById('dateInput').value;
+            const time = document.getElementById('timeInput').value;
+            const [year, month, day] = date.split('-');
+            const [hour, minute, second] = time.split(':');
+
+            try {
+                const response = await fetch('/setTime', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/x-www-form-urlencoded',
+                    },
+                    body: `year=${year}&month=${month}&day=${day}&hour=${hour}&minute=${minute}&second=${second || '0'}`
+                });
+
+                if (response.ok) {
+                    showAlert('timeAlert', 'Date and time set successfully', 'success');
+                } else {
+                    showAlert('timeAlert', 'Failed to set date and time', 'danger');
+                }
+            } catch (error) {
+                showAlert('timeAlert', 'Error setting date and time', 'danger');
+            }
+        }
+
+        async function downloadData() {
+            window.location.href = '/getData';
+        }
+
+        async function deleteData() {
+            if (!confirm('Are you sure you want to delete all data?')) return;
+
+            try {
+                const response = await fetch('/deleteData', { method: 'POST' });
+                if (response.ok) {
+                    showAlert('dataAlert', 'Data deleted successfully', 'success');
+                } else {
+                    showAlert('dataAlert', 'Failed to delete data', 'danger');
+                }
+            } catch (error) {
+                showAlert('dataAlert', 'Error deleting data', 'danger');
+            }
+        }
+
+        async function restartDevice() {
+            if (!confirm('Are you sure you want to restart the device?')) return;
+
+            try {
+                const response = await fetch('/restart', { method: 'POST' });
+                if (response.ok) {
+                    showAlert('settingsAlert', 'Device is restarting...', 'success');
+                    setTimeout(() => location.reload(), 5000);
+                }
+            } catch (error) {
+                showAlert('settingsAlert', 'Failed to restart device', 'danger');
+            }
+        }
+
+        // Graph functions
+        function parseCSVData(csv) {
+            const lines = csv.split('\n');
+            const data = [];
+            for (let i = 1; i < lines.length; i++) { // Skip header
+                const line = lines[i].trim();
+                if (line) {
+                    const [, , datetime, level] = line.split(',');
+                    data.push({ datetime, level: parseFloat(level) });
+                }
+            }
+            return data.slice(-144); // Get last 144 readings
+        }
+
+        function drawGraph(data) {
+            const container = document.getElementById('graphContainer');
+            const width = container.clientWidth;
+            const height = container.clientHeight;
+            const padding = 40;
+
+            // Clear previous graph
+            container.innerHTML = '';
+
+            // Create SVG element
+            const svg = document.createElementNS('http://www.w3.org/2000/svg', 'svg');
+            svg.setAttribute('width', width);
+            svg.setAttribute('height', height);
+
+            // Calculate scales
+            const xScale = (width - 2 * padding) / (data.length - 1);
+            const yMin = Math.min(...data.map(d => d.level));
+            const yMax = Math.max(...data.map(d => d.level));
+            const yScale = (height - 2 * padding) / (yMax - yMin);
+
+            // Draw axes
+            const xAxis = document.createElementNS('http://www.w3.org/2000/svg', 'path');
+            xAxis.setAttribute('d', `M${padding},${height - padding} H${width - padding}`);
+            xAxis.setAttribute('stroke', '#000');
+            svg.appendChild(xAxis);
+
+            const yAxis = document.createElementNS('http://www.w3.org/2000/svg', 'path');
+            yAxis.setAttribute('d', `M${padding},${padding} V${height - padding}`);
+            yAxis.setAttribute('stroke', '#000');
+            svg.appendChild(yAxis);
+
+            // Draw y-axis labels
+            for (let i = 0; i <= 5; i++) {
+                const y = yMin + (yMax - yMin) * i / 5;
+                const label = document.createElementNS('http://www.w3.org/2000/svg', 'text');
+                label.textContent = y.toFixed(1);
+                label.setAttribute('x', padding - 5);
+                label.setAttribute('y', height - padding - (y - yMin) * yScale);
+                label.setAttribute('text-anchor', 'end');
+                label.setAttribute('alignment-baseline', 'middle');
+                label.setAttribute('font-size', '12px');
+                svg.appendChild(label);
+            }
+
+            // Draw x-axis labels
+            for (let i = 0; i < data.length; i += Math.ceil(data.length / 6)) {
+                const label = document.createElementNS('http://www.w3.org/2000/svg', 'text');
+                const datetime = new Date(data[i].datetime);
+                label.textContent = datetime.toLocaleTimeString();
+                label.setAttribute('x', padding + i * xScale);
+                label.setAttribute('y', height - padding + 20);
+                label.setAttribute('text-anchor', 'middle');
+                label.setAttribute('font-size', '12px');
+                label.setAttribute('transform', `rotate(45,${padding + i * xScale},${height - padding + 20})`);
+                svg.appendChild(label);
+            }
+
+            // Draw data points and lines
+            let pathD = '';
+            for (let i = 0; i < data.length; i++) {
+                const x = padding + i * xScale;
+                const y = height - padding - (data[i].level - yMin) * yScale;
+
+                if (i === 0) {
+                    pathD = `M${x},${y}`;
+                } else {
+                    pathD += ` L${x},${y}`;
+                }
+
+                const point = document.createElementNS('http://www.w3.org/2000/svg', 'circle');
+                point.setAttribute('cx', x);
+                point.setAttribute('cy', y);
+                point.setAttribute('r', '3');
+                point.setAttribute('class', 'graph-point');
+                point.setAttribute('data-value', `${data[i].datetime}: ${data[i].level} cm`);
+                
+                // Add hover effect
+                point.addEventListener('mouseover', function(e) {
+                    const tooltip = document.createElement('div');
+                    tooltip.className = 'tooltip';
+                    tooltip.textContent = this.getAttribute('data-value');
+                    tooltip.style.left = (e.pageX + 10) + 'px';
+                    tooltip.style.top = (e.pageY - 10) + 'px';
+                    document.body.appendChild(tooltip);
+                });
+                
+                point.addEventListener('mouseout', function() {
+                    const tooltip = document.querySelector('.tooltip');
+                    if (tooltip) {
+                        tooltip.remove();
+                    }
+                });
+
+                svg.appendChild(point);
+            }
+
+            // Draw line connecting points
+            const path = document.createElementNS('http://www.w3.org/2000/svg', 'path');
+            path.setAttribute('d', pathD);
+            path.setAttribute('class', 'graph-line');
+            svg.appendChild(path);
+
+            container.appendChild(svg);
+        }
+
+        async function fetchAndUpdateGraph() {
+            try {
+                const response = await fetch('/getData');
+                const csvData = await response.text();
+                historicalData = parseCSVData(csvData);
+                drawGraph(historicalData);
+            } catch (error) {
+                console.error('Error fetching graph data:', error);
+            }
+        }
+
+        // Initialize date/time inputs
+        function initializeDateTimeInputs() {
+            const now = new Date();
+            const dateStr = now.toISOString().split('T')[0];
+            const timeStr = now.toTimeString().slice(0, 8);
+            document.getElementById('dateInput').value = dateStr;
+            document.getElementById('timeInput').value = timeStr;
+        }
+
+        // Event listeners
+        document.getElementById('restartBtn').addEventListener('click', restartDevice);
+
+        // Initialize and start periodic updates
+        async function initialize() {
+            initializeDateTimeInputs();
+            await Promise.all([
+                fetchConfig(),
+                fetchCurrentLevel(),
+                fetchUptime(),
+                fetchConnectedDevices(),
+                fetchSerialData(),
+                fetchAndUpdateGraph()
+            ]);
+        }
+
+        // Update data periodically
+        function startPeriodicUpdates() {
+            setInterval(async () => {
+                await Promise.all([
+                    fetchCurrentLevel(),
+                    fetchUptime(),
+                    fetchConnectedDevices(),
+                    fetchSerialData(),
+                    fetchAndUpdateGraph()
+                ]);
+            }, 5000); // Update every 5 seconds
+        }
+
+        // Start the application
+        initialize().then(startPeriodicUpdates);
     </script>
 </body>
 </html>
