@@ -188,8 +188,9 @@ void loop()
     {
         measureWaterLevel();
         lastMeasurementTime = currentTime;
-        resetWatchdog();
     }
+
+    resetWatchdog();
 }
 
 bool setupSD()
