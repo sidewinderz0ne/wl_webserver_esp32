@@ -149,6 +149,7 @@ void setup()
 
     Serial.println("System initialized successfully");
     Serial.printf("Access web interface at: http://%s\n", WiFi.softAPIP().toString().c_str());
+    measureWaterLevel();
 }
 
 void handleRestart() {
@@ -546,34 +547,60 @@ bool saveConfig()
 
 void measureWaterLevel()
 {
-    // Clear the trigger pin
-    digitalWrite(TRIGGER_PIN, LOW);
-    delayMicroseconds(2);
+    const int numMeasurements = 30;  // Number of measurements to average
+    float measurements[numMeasurements];  // Array to store measurements
+    int validMeasurements = 0;  // Counter for valid measurements
 
-    // Send 10μs pulse
-    digitalWrite(TRIGGER_PIN, HIGH);
-    delayMicroseconds(10);
-    digitalWrite(TRIGGER_PIN, LOW);
-
-    // Read the duration of the echo pulse
-    long duration = pulseIn(ECHO_PIN, HIGH, 30000); // Timeout after 30ms
-
-    if (duration == 0)
+    for (int i = 0; i < numMeasurements; i++)
     {
-        Serial.println("Warning: No echo received");
+        // Clear the trigger pin
+        digitalWrite(TRIGGER_PIN, LOW);
+        delayMicroseconds(2);
+
+        // Send 10μs pulse
+        digitalWrite(TRIGGER_PIN, HIGH);
+        delayMicroseconds(10);
+        digitalWrite(TRIGGER_PIN, LOW);
+
+        // Read the duration of the echo pulse
+        long duration = pulseIn(ECHO_PIN, HIGH, 30000); // Timeout after 30ms
+
+        if (duration > 0)  // Only count valid measurements
+        {
+            // Calculate distance
+            float distance = duration * 0.034 / 2;
+            measurements[validMeasurements] = distance;
+            validMeasurements++;
+        }
+        
+        // Small delay between measurements to prevent echo interference
+        delay(50);
+    }
+
+    if (validMeasurements == 0)
+    {
+        Serial.println("Warning: No valid measurements received");
         return;
     }
 
-    // Calculate distance
-    float distance = duration * 0.034 / 2;
+    // Calculate average
+    float sum = 0;
+    for (int i = 0; i < validMeasurements; i++)
+    {
+        sum += measurements[i];
+    }
+    float averageDistance = sum / validMeasurements;
 
     // Apply calibration
-    currentWaterLevel = distance + config.calibrationOffset;
+    currentWaterLevel = averageDistance + config.calibrationOffset;
 
     // Log data
     logData(currentWaterLevel);
 
-    addToSerialBuffer("Water Level: " + String(currentWaterLevel) + "cm\n");
+    // Add number of valid measurements to the output
+    addToSerialBuffer("Water Level: " + String(currentWaterLevel) + 
+                     "cm (from " + String(validMeasurements) + 
+                     " measurements)\n");
 }
 
 void logData(float level)
