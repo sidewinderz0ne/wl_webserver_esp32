@@ -21,6 +21,9 @@
 // RTC I2C Pins
 #define RTC_SDA 21 // GPIO21 (SDA)
 #define RTC_SCL 22 // GPIO22 (SCL)
+// Add new pin definitions for A01NYUB
+#define A01_RX 16 // GPIO16
+#define A01_TX 17 // GPIO17
 
 // Constants
 #define WDT_TIMEOUT 180 // 3 minutes watchdog timeout
@@ -40,15 +43,21 @@ float currentWaterLevel = 0.0;
 String connectedClients[MAX_CLIENTS];
 int numClients = 0;
 
-// Configuration structure
-struct Config
+// Add sensor type enum
+enum SensorType
 {
+    HCSR04_SENSOR,
+    A01NYUB_SENSOR
+};
+
+// Configuration structure
+struct Config {
     int stationId;
     String stationName;
     unsigned long measurementInterval;
     float calibrationOffset;
-    struct DateTime
-    {
+    SensorType sensorType;  // Add this line
+    struct DateTime {
         int year;
         int month;
         int day;
@@ -63,7 +72,8 @@ struct Config
     Config() : stationId(1),
                stationName("Default Station"),
                measurementInterval(10000),
-               calibrationOffset(0.0) {}
+               calibrationOffset(0.0),
+               sensorType(HCSR04_SENSOR) {}  // Initialize default sensor type
 } config;
 
 unsigned long startTime = 0;
@@ -95,6 +105,8 @@ void addToSerialBuffer(const String &message);
 void handleRestart();
 void handleUptime();
 void validateMeasurementInterval();
+float readA01NYUB();
+float readHCSR04();
 
 void addToSerialBuffer(const String &message)
 {
@@ -150,31 +162,47 @@ void setup()
     Serial.println("System initialized successfully");
     Serial.printf("Access web interface at: http://%s\n", WiFi.softAPIP().toString().c_str());
     measureWaterLevel();
+
+    // Initialize sensor pins based on type
+    if (config.sensorType == HCSR04_SENSOR)
+    {
+        pinMode(TRIGGER_PIN, OUTPUT);
+        pinMode(ECHO_PIN, INPUT);
+    }
+    else
+    {
+        Serial2.begin(9600, SERIAL_8N1, A01_RX, A01_TX);
+        Serial2.end(); // Will be reopened when needed
+    }
 }
 
-void handleRestart() {
+void handleRestart()
+{
     server.send(200, "text/plain", "Restarting...");
     delay(1000);
     ESP.restart();
 }
 
-void handleUptime() {
+void handleUptime()
+{
     unsigned long currentMillis = millis();
     unsigned long uptimeSeconds = currentMillis / 1000;
     unsigned long uptimeMinutes = uptimeSeconds / 60;
     unsigned long uptimeHours = uptimeMinutes / 60;
     unsigned long uptimeDays = uptimeHours / 24;
-    
+
     String uptimeStr = String(uptimeDays) + " days, " +
-                      String(uptimeHours % 24) + " hours, " +
-                      String(uptimeMinutes % 60) + " minutes, " +
-                      String(uptimeSeconds % 60) + " seconds";
-                      
+                       String(uptimeHours % 24) + " hours, " +
+                       String(uptimeMinutes % 60) + " minutes, " +
+                       String(uptimeSeconds % 60) + " seconds";
+
     server.send(200, "text/plain", uptimeStr);
 }
 
-void validateMeasurementInterval() {
-    if (config.measurementInterval < MINIMUM_INTERVAL) {
+void validateMeasurementInterval()
+{
+    if (config.measurementInterval < MINIMUM_INTERVAL)
+    {
         config.measurementInterval = MINIMUM_INTERVAL;
         saveConfig();
     }
@@ -238,9 +266,10 @@ void setupWiFi()
     Serial.println(WiFi.softAPIP());
 }
 
-void setupWebServer() {
+void setupWebServer()
+{
     server.enableCORS(true);
-    
+
     server.on("/", HTTP_GET, handleRoot);
     server.on("/getData", HTTP_GET, handleGetData);
     server.on("/deleteData", HTTP_POST, handleDeleteData);
@@ -253,7 +282,7 @@ void setupWebServer() {
     server.on("/currentLevel", HTTP_GET, handleCurrentLevel);
     server.on("/restart", HTTP_POST, handleRestart);
     server.on("/uptime", HTTP_GET, handleUptime);
-    
+
     server.begin();
 }
 
@@ -322,22 +351,47 @@ void handleDeleteData()
     }
 }
 
-void handleSettings() {
-    if (server.hasArg("stationId")) {
+void handleSettings()
+{
+    if (server.hasArg("sensorType"))
+    {
+        String sensorTypeStr = server.arg("sensorType");
+        config.sensorType = sensorTypeStr.equals("A01NYUB") ? A01NYUB_SENSOR : HCSR04_SENSOR;
+    }
+    if (server.hasArg("stationId"))
+    {
         config.stationId = server.arg("stationId").toInt();
     }
-    if (server.hasArg("stationName")) {
+    if (server.hasArg("stationName"))
+    {
         config.stationName = server.arg("stationName");
     }
-    if (server.hasArg("interval")) {
+    if (server.hasArg("interval"))
+    {
         // Convert seconds to milliseconds and ensure minimum interval
         unsigned long seconds = server.arg("interval").toInt();
         config.measurementInterval = max(MINIMUM_INTERVAL, seconds * 1000UL);
     }
-    
-    if (saveConfig()) {
+
+    if (saveConfig())
+    {
+        // Initialize appropriate pins based on new sensor type
+        if (config.sensorType == HCSR04_SENSOR)
+        {
+            pinMode(TRIGGER_PIN, OUTPUT);
+            pinMode(ECHO_PIN, INPUT);
+            Serial2.end(); // Make sure A01NYUB serial is closed
+        }
+        else
+        {
+            // For A01NYUB, we'll initialize Serial2 when needed
+            pinMode(TRIGGER_PIN, INPUT); // Set unused pins to input
+            pinMode(ECHO_PIN, INPUT);
+        }
         server.send(200, "text/plain", "Settings saved successfully");
-    } else {
+    }
+    else
+    {
         server.send(500, "text/plain", "Failed to save settings");
     }
 }
@@ -414,34 +468,39 @@ void handleSerial()
     server.send(200, "text/plain", output);
 }
 
-void handleClients() {
+void handleClients()
+{
     wifi_sta_list_t stationList;
     tcpip_adapter_sta_list_t adapterList;
-    
+
     esp_wifi_ap_get_sta_list(&stationList);
     tcpip_adapter_get_sta_list(&stationList, &adapterList);
-    
+
     String clientsList = "[";
-    for (int i = 0; i < adapterList.num; i++) {
-        if (i > 0) clientsList += ",";
+    for (int i = 0; i < adapterList.num; i++)
+    {
+        if (i > 0)
+            clientsList += ",";
         tcpip_adapter_sta_info_t station = adapterList.sta[i];
         String mac = "";
-        for (int j = 0; j < 6; j++) {
-            if (j > 0) mac += ":";
-            if (station.mac[j] < 0x10) mac += "0";
+        for (int j = 0; j < 6; j++)
+        {
+            if (j > 0)
+                mac += ":";
+            if (station.mac[j] < 0x10)
+                mac += "0";
             mac += String(station.mac[j], HEX);
         }
         String ip = String(station.ip.addr & 0xFF) + "." +
-                   String((station.ip.addr >> 8) & 0xFF) + "." +
-                   String((station.ip.addr >> 16) & 0xFF) + "." +
-                   String((station.ip.addr >> 24) & 0xFF);
+                    String((station.ip.addr >> 8) & 0xFF) + "." +
+                    String((station.ip.addr >> 16) & 0xFF) + "." +
+                    String((station.ip.addr >> 24) & 0xFF);
         clientsList += "\"" + ip + " (MAC: " + mac + ")\"";
     }
     clientsList += "]";
-    
+
     server.send(200, "application/json", clientsList);
 }
-
 
 void handleCurrentLevel()
 {
@@ -456,6 +515,7 @@ void handleGetConfig()
     doc["stationName"] = config.stationName;
     doc["measurementInterval"] = config.measurementInterval;
     doc["calibrationOffset"] = config.calibrationOffset;
+    doc["sensorType"] = (int)config.sensorType;
 
     DateTime now = rtc.now();
     JsonObject dateTime = doc["dateTime"].to<JsonObject>();
@@ -508,6 +568,8 @@ bool loadConfig()
         config.dateTime.minute = dateTime["minute"] | 0;
         config.dateTime.second = dateTime["second"] | 0;
     }
+    
+     config.sensorType = (SensorType)(doc["sensorType"] | HCSR04_SENSOR);
 
     return true;
 }
@@ -526,6 +588,7 @@ bool saveConfig()
     doc["stationName"] = config.stationName;
     doc["measurementInterval"] = config.measurementInterval;
     doc["calibrationOffset"] = config.calibrationOffset;
+    doc["sensorType"] = (int)config.sensorType;
 
     JsonObject dateTime = doc["dateTime"].to<JsonObject>();
     dateTime["year"] = config.dateTime.year;
@@ -534,6 +597,7 @@ bool saveConfig()
     dateTime["hour"] = config.dateTime.hour;
     dateTime["minute"] = config.dateTime.minute;
     dateTime["second"] = config.dateTime.second;
+    
 
     if (serializeJson(doc, file) == 0)
     {
@@ -545,62 +609,113 @@ bool saveConfig()
     return true;
 }
 
-void measureWaterLevel()
+// Add A01NYUB reading function
+float readA01NYUB()
 {
-    const int numMeasurements = 30;  // Number of measurements to average
-    float measurements[numMeasurements];  // Array to store measurements
-    int validMeasurements = 0;  // Counter for valid measurements
+    const int numMeasurements = 30;
+    float measurements[numMeasurements];
+    int validMeasurements = 0;
+
+    Serial2.begin(9600, SERIAL_8N1, A01_RX, A01_TX);
 
     for (int i = 0; i < numMeasurements; i++)
     {
-        // Clear the trigger pin
-        digitalWrite(TRIGGER_PIN, LOW);
-        delayMicroseconds(2);
+        if (Serial2.write(0x01) == 1)
+        {               // Trigger measurement
+            delay(100); // Wait for response
 
-        // Send 10μs pulse
-        digitalWrite(TRIGGER_PIN, HIGH);
-        delayMicroseconds(10);
-        digitalWrite(TRIGGER_PIN, LOW);
+            if (Serial2.available() >= 4)
+            {
+                byte response[4];
+                Serial2.readBytes(response, 4);
 
-        // Read the duration of the echo pulse
-        long duration = pulseIn(ECHO_PIN, HIGH, 30000); // Timeout after 30ms
-
-        if (duration > 0)  // Only count valid measurements
-        {
-            // Calculate distance
-            float distance = duration * 0.034 / 2;
-            measurements[validMeasurements] = distance;
-            validMeasurements++;
+                if (response[0] == 0xFF)
+                { // Valid header
+                    int distance = (response[1] << 8) | response[2];
+                    if (distance > 0 && distance < 7500)
+                    {                                                        // Valid range
+                        measurements[validMeasurements++] = distance / 10.0; // Convert to cm
+                    }
+                }
+            }
         }
-        
-        // Small delay between measurements to prevent echo interference
         delay(50);
     }
 
+    Serial2.end();
+
     if (validMeasurements == 0)
     {
-        Serial.println("Warning: No valid measurements received");
-        return;
+        addToSerialBuffer("Warning: No valid A01NYUB measurements");
+        return -1;
     }
 
-    // Calculate average
     float sum = 0;
     for (int i = 0; i < validMeasurements; i++)
     {
         sum += measurements[i];
     }
-    float averageDistance = sum / validMeasurements;
+    return sum / validMeasurements;
+}
 
-    // Apply calibration
-    currentWaterLevel = averageDistance + config.calibrationOffset;
+// Modify measureWaterLevel function
+void measureWaterLevel()
+{
+    float distance;
 
-    // Log data
-    logData(currentWaterLevel);
+    if (config.sensorType == HCSR04_SENSOR)
+    {
+        distance = readHCSR04();
+    }
+    else
+    {
+        distance = readA01NYUB();
+    }
 
-    // Add number of valid measurements to the output
-    addToSerialBuffer("Water Level: " + String(currentWaterLevel) + 
-                     "cm (from " + String(validMeasurements) + 
-                     " measurements)\n");
+    if (distance >= 0)
+    {
+        currentWaterLevel = distance + config.calibrationOffset;
+        logData(currentWaterLevel);
+        addToSerialBuffer("Water Level: " + String(currentWaterLevel) + "cm");
+    }
+}
+
+// Extract HCSR04 code into separate function
+float readHCSR04()
+{
+    const int numMeasurements = 30;
+    float measurements[numMeasurements];
+    int validMeasurements = 0;
+
+    for (int i = 0; i < numMeasurements; i++)
+    {
+        digitalWrite(TRIGGER_PIN, LOW);
+        delayMicroseconds(2);
+        digitalWrite(TRIGGER_PIN, HIGH);
+        delayMicroseconds(10);
+        digitalWrite(TRIGGER_PIN, LOW);
+
+        long duration = pulseIn(ECHO_PIN, HIGH, 30000);
+        if (duration > 0)
+        {
+            float distance = duration * 0.034 / 2;
+            measurements[validMeasurements++] = distance;
+        }
+        delay(50);
+    }
+
+    if (validMeasurements == 0)
+    {
+        addToSerialBuffer("Warning: No valid HCSR04 measurements");
+        return -1;
+    }
+
+    float sum = 0;
+    for (int i = 0; i < validMeasurements; i++)
+    {
+        sum += measurements[i];
+    }
+    return sum / validMeasurements;
 }
 
 void logData(float level)
