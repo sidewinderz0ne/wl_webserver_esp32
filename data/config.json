@@ -1,14 +1,17 @@
 {
   "stationId": 1,
   "stationName": "Default Station",
-  "measurementInterval": 12,
+  "measurementInterval": 12000,
   "calibrationOffset": 0.0,
+  "sensorType": 0,
+  "sensorToBottomDistance": 100.0,
+  "sensorToZeroBlokDistance": 50.0,
   "dateTime": {
-      "year": 2024,
-      "month": 1,
-      "day": 1,
-      "hour": 0,
-      "minute": 0,
-      "second": 0
+    "year": 2024,
+    "month": 1,
+    "day": 1,
+    "hour": 0,
+    "minute": 0,
+    "second": 0
   }
 }

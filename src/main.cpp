@@ -39,7 +39,9 @@ WebServer server(80);
 RTC_DS3231 rtc;
 String serialBuffer = "";
 unsigned long lastMeasurementTime = 0;
-float currentWaterLevel = 0.0;
+float currentWaterLevelBlok = 0.0;
+float currentWaterLevelParit = 0.0;
+float currentRawDistance = 0.0;
 String connectedClients[MAX_CLIENTS];
 int numClients = 0;
 
@@ -56,7 +58,10 @@ struct Config {
     String stationName;
     unsigned long measurementInterval;
     float calibrationOffset;
-    SensorType sensorType;  // Add this line
+    SensorType sensorType;
+    float sensorToBottomDistance;  // Distance from sensor to bottom of ditch
+    float sensorToZeroBlokDistance; // Distance from sensor to 0 level of block
+    
     struct DateTime {
         int year;
         int month;
@@ -73,7 +78,9 @@ struct Config {
                stationName("Default Station"),
                measurementInterval(10000),
                calibrationOffset(0.0),
-               sensorType(HCSR04_SENSOR) {}  // Initialize default sensor type
+               sensorType(HCSR04_SENSOR),
+               sensorToBottomDistance(100.0),
+               sensorToZeroBlokDistance(50.0) {}
 } config;
 
 unsigned long startTime = 0;
@@ -95,7 +102,7 @@ void handleClients();
 void handleGetConfig();
 void handleCurrentLevel();
 void measureWaterLevel();
-void logData(float level);
+void logData(float levelBlok, float levelParit);
 String getFormattedDateTime();
 bool loadConfig();
 bool saveConfig();
@@ -336,7 +343,7 @@ void handleDeleteData()
         File file = SD.open("/data.csv", "w");
         if (file)
         {
-            file.println("Station ID,Station Name,DateTime,Water Level (cm)");
+            file.println("Station ID,Station Name,DateTime,Water Level (Blok) (cm),Water Level (Parit) (cm),Raw Distance (cm)");
             file.close();
             server.send(200, "text/plain", "Data deleted successfully");
         }
@@ -371,6 +378,14 @@ void handleSettings()
         // Convert seconds to milliseconds and ensure minimum interval
         unsigned long seconds = server.arg("interval").toInt();
         config.measurementInterval = max(MINIMUM_INTERVAL, seconds * 1000UL);
+    }
+    if (server.hasArg("sensorToBottomDistance"))
+    {
+        config.sensorToBottomDistance = server.arg("sensorToBottomDistance").toFloat();
+    }
+    if (server.hasArg("sensorToZeroBlokDistance"))
+    {
+        config.sensorToZeroBlokDistance = server.arg("sensorToZeroBlokDistance").toFloat();
     }
 
     if (saveConfig())
@@ -504,7 +519,14 @@ void handleClients()
 
 void handleCurrentLevel()
 {
-    server.send(200, "text/plain", String(currentWaterLevel, 2));
+    JsonDocument doc;
+    doc["waterLevelBlok"] = currentWaterLevelBlok;
+    doc["waterLevelParit"] = currentWaterLevelParit;
+    doc["rawDistance"] = currentRawDistance;
+    
+    String jsonString;
+    serializeJson(doc, jsonString);
+    server.send(200, "application/json", jsonString);
 }
 
 void handleGetConfig()
@@ -516,6 +538,8 @@ void handleGetConfig()
     doc["measurementInterval"] = config.measurementInterval;
     doc["calibrationOffset"] = config.calibrationOffset;
     doc["sensorType"] = (int)config.sensorType;
+    doc["sensorToBottomDistance"] = config.sensorToBottomDistance;
+    doc["sensorToZeroBlokDistance"] = config.sensorToZeroBlokDistance;
 
     DateTime now = rtc.now();
     JsonObject dateTime = doc["dateTime"].to<JsonObject>();
@@ -557,6 +581,8 @@ bool loadConfig()
     config.stationName = doc["stationName"].as<String>();
     config.measurementInterval = doc["measurementInterval"] | 60000;
     config.calibrationOffset = doc["calibrationOffset"] | 0.0;
+    config.sensorToBottomDistance = doc["sensorToBottomDistance"] | 100.0;
+    config.sensorToZeroBlokDistance = doc["sensorToZeroBlokDistance"] | 50.0;
 
     JsonObject dateTime = doc["dateTime"];
     if (dateTime)
@@ -569,7 +595,7 @@ bool loadConfig()
         config.dateTime.second = dateTime["second"] | 0;
     }
     
-     config.sensorType = (SensorType)(doc["sensorType"] | HCSR04_SENSOR);
+    config.sensorType = (SensorType)(doc["sensorType"] | HCSR04_SENSOR);
 
     return true;
 }
@@ -589,6 +615,8 @@ bool saveConfig()
     doc["measurementInterval"] = config.measurementInterval;
     doc["calibrationOffset"] = config.calibrationOffset;
     doc["sensorType"] = (int)config.sensorType;
+    doc["sensorToBottomDistance"] = config.sensorToBottomDistance;
+    doc["sensorToZeroBlokDistance"] = config.sensorToZeroBlokDistance;
 
     JsonObject dateTime = doc["dateTime"].to<JsonObject>();
     dateTime["year"] = config.dateTime.year;
@@ -598,7 +626,6 @@ bool saveConfig()
     dateTime["minute"] = config.dateTime.minute;
     dateTime["second"] = config.dateTime.second;
     
-
     if (serializeJson(doc, file) == 0)
     {
         file.close();
@@ -658,28 +685,6 @@ float readA01NYUB()
     return sum / validMeasurements;
 }
 
-// Modify measureWaterLevel function
-void measureWaterLevel()
-{
-    float distance;
-
-    if (config.sensorType == HCSR04_SENSOR)
-    {
-        distance = readHCSR04();
-    }
-    else
-    {
-        distance = readA01NYUB();
-    }
-
-    if (distance >= 0)
-    {
-        currentWaterLevel = distance + config.calibrationOffset;
-        logData(currentWaterLevel);
-        addToSerialBuffer("Water Level: " + String(currentWaterLevel) + "cm");
-    }
-}
-
 // Extract HCSR04 code into separate function
 float readHCSR04()
 {
@@ -718,8 +723,54 @@ float readHCSR04()
     return sum / validMeasurements;
 }
 
-void logData(float level)
+// Modified measureWaterLevel function with dual calculations
+void measureWaterLevel()
 {
+    float distance;
+
+    if (config.sensorType == HCSR04_SENSOR)
+    {
+        distance = readHCSR04();
+    }
+    else
+    {
+        distance = readA01NYUB();
+    }
+
+    if (distance >= 0)
+    {
+        currentRawDistance = distance;
+        
+        // Calculate water level for block (blok) using formula:
+        // waterlevel(blok) = ((distance between sensor to water - distance between sensor to 0 blok) * -1) + calibration
+        currentWaterLevelBlok = ((distance - config.sensorToZeroBlokDistance) * -1) + config.calibrationOffset;
+        
+        // Calculate water level for ditch (parit) using formula:
+        // waterlevel(parit) = (distance between sensor to bottom of ditch - distance between sensor to water) + calibration
+        currentWaterLevelParit = (config.sensorToBottomDistance - distance) + config.calibrationOffset;
+        
+        // Log both measurements
+        logData(currentWaterLevelBlok, currentWaterLevelParit);
+        
+        addToSerialBuffer("Raw Distance: " + String(currentRawDistance) + 
+                         "cm, Water Level (Blok): " + String(currentWaterLevelBlok) + 
+                         "cm, Water Level (Parit): " + String(currentWaterLevelParit) + "cm");
+    }
+}
+
+void logData(float levelBlok, float levelParit)
+{
+    // Create the data file with headers if it doesn't exist
+    if (!SD.exists("/data.csv"))
+    {
+        File file = SD.open("/data.csv", "w");
+        if (file)
+        {
+            file.println("Station ID,Station Name,DateTime,Water Level (Blok) (cm),Water Level (Parit) (cm),Raw Distance (cm)");
+            file.close();
+        }
+    }
+    
     File file = SD.open("/data.csv", "a");
     if (!file)
     {
@@ -730,7 +781,9 @@ void logData(float level)
     String dataString = String(config.stationId) + "," +
                         config.stationName + "," +
                         getFormattedDateTime() + "," +
-                        String(level, 2) + "\n";
+                        String(levelBlok, 2) + "," +
+                        String(levelParit, 2) + "," +
+                        String(currentRawDistance, 2) + "\n";
 
     if (file.print(dataString))
     {

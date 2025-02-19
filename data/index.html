@@ -48,7 +48,7 @@
             font-weight: bold;
         }
 
-        .form-group input {
+        .form-group input, .form-group select {
             width: 100%;
             padding: 8px;
             border: 1px solid #ddd;
@@ -96,11 +96,41 @@
         }
 
         .current-level {
-            font-size: 48px;
+            font-size: 36px;
             font-weight: bold;
             color: #007bff;
             text-align: center;
-            margin: 20px 0;
+            margin: 10px 0;
+        }
+
+        .level-display {
+            display: flex;
+            flex-direction: column;
+            gap: 15px;
+        }
+
+        .level-card {
+            background: #f9f9f9;
+            padding: 15px;
+            border-radius: 6px;
+            border-left: 4px solid #007bff;
+        }
+
+        .level-card h3 {
+            margin-bottom: 5px;
+            color: #444;
+        }
+
+        .level-card.blok {
+            border-left-color: #28a745;
+        }
+
+        .level-card.parit {
+            border-left-color: #17a2b8;
+        }
+
+        .level-card.raw {
+            border-left-color: #6c757d;
         }
 
         .datetime-display {
@@ -123,6 +153,26 @@
         .graph-container {
             height: 300px;
             margin-top: 20px;
+        }
+
+        .graph-selector {
+            display: flex;
+            gap: 10px;
+            margin-bottom: 15px;
+        }
+
+        .graph-selector button {
+            background: #e9ecef;
+            border: 1px solid #ced4da;
+            padding: 5px 10px;
+            border-radius: 4px;
+            cursor: pointer;
+        }
+
+        .graph-selector button.active {
+            background: #007bff;
+            color: white;
+            border-color: #007bff;
         }
 
         .graph-point {
@@ -153,8 +203,21 @@
         
         <div class="grid">
             <div class="card">
-                <h2>Current Status</h2>
-                <div id="currentLevel" class="current-level">--</div>
+                <h2>Hasil Pengukuran</h2>
+                <div class="level-display">
+                    <div class="level-card blok">
+                        <h3>Water Level (Blok)</h3>
+                        <div id="currentLevelBlok" class="current-level">--</div>
+                    </div>
+                    <div class="level-card parit">
+                        <h3>Water Level (Parit)</h3>
+                        <div id="currentLevelParit" class="current-level">--</div>
+                    </div>
+                    <div class="level-card raw">
+                        <h3>Jarak Sensor</h3>
+                        <div id="currentRawDistance" class="current-level">--</div>
+                    </div>
+                </div>
                 <div id="currentDateTime" class="datetime-display">--</div>
                 <div id="deviceUptime">Uptime: --</div>
                 <button id="restartBtn" class="btn btn-danger">Restart Device</button>
@@ -172,7 +235,7 @@
                     <input type="text" id="stationName">
                 </div>
                 <div class="form-group">
-                    <label>Measurement Interval (seconds):</label>
+                    <label>Interval Pengukuran (seconds):</label>
                     <input type="number" id="measurementInterval" min="12">
                 </div>
                 <div class="form-group">
@@ -181,6 +244,14 @@
                         <option value="HCSR04">HC-SR04 Ultrasonic Sensor</option>
                         <option value="A01NYUB">A01NYUB Sensor</option>
                     </select>
+                </div>
+                <div class="form-group">
+                    <label>Jarak Permukaan Air ke Dasar Parit (cm):</label>
+                    <input type="number" id="sensorToBottomDistance" step="0.1">
+                </div>
+                <div class="form-group">
+                    <label>Jarak Permukaan Air ke 0 Blok (cm):</label>
+                    <input type="number" id="sensorToZeroBlokDistance" step="0.1">
                 </div>
                 <button onclick="saveSettings()" class="btn">Save Settings</button>
             </div>
@@ -212,6 +283,11 @@
 
         <div class="card">
             <h2>Water Level History</h2>
+            <div class="graph-selector">
+                <button id="graphBlok" class="active" onclick="switchGraph('Blok')">Blok</button>
+                <button id="graphParit" onclick="switchGraph('Parit')">Parit</button>
+                <button id="graphRaw" onclick="switchGraph('Raw')">Raw Distance</button>
+            </div>
             <div id="graphContainer" class="graph-container"></div>
         </div>
 
@@ -251,13 +327,17 @@
         }
 
         let historicalData = [];
+        let currentGraphType = 'Blok'; // Default graph type
 
         // Data fetching functions
         async function fetchCurrentLevel() {
             try {
                 const response = await fetch('/currentLevel');
-                const level = await response.text();
-                document.getElementById('currentLevel').textContent = `${level} cm`;
+                const data = await response.json();
+                
+                document.getElementById('currentLevelBlok').textContent = `${data.waterLevelBlok.toFixed(2)} cm`;
+                document.getElementById('currentLevelParit').textContent = `${data.waterLevelParit.toFixed(2)} cm`;
+                document.getElementById('currentRawDistance').textContent = `${data.rawDistance.toFixed(2)} cm`;
                 document.getElementById('currentDateTime').textContent = formatDateTime(new Date());
             } catch (error) {
                 console.error('Error fetching current level:', error);
@@ -283,6 +363,8 @@
                 document.getElementById('measurementInterval').value = config.measurementInterval / 1000;
                 document.getElementById('calibrationOffset').value = config.calibrationOffset;
                 document.getElementById('sensorType').value = config.sensorType === 1 ? 'A01NYUB' : 'HCSR04';
+                document.getElementById('sensorToBottomDistance').value = config.sensorToBottomDistance;
+                document.getElementById('sensorToZeroBlokDistance').value = config.sensorToZeroBlokDistance;
             } catch (error) {
                 console.error('Error fetching config:', error);
             }
@@ -317,6 +399,8 @@
             const stationName = document.getElementById('stationName').value;
             const interval = document.getElementById('measurementInterval').value;
             const sensorType = document.getElementById('sensorType').value;
+            const sensorToBottomDistance = document.getElementById('sensorToBottomDistance').value;
+            const sensorToZeroBlokDistance = document.getElementById('sensorToZeroBlokDistance').value;
 
             try {
                 const response = await fetch('/settings', {
@@ -324,7 +408,7 @@
                     headers: {
                         'Content-Type': 'application/x-www-form-urlencoded',
                     },
-                    body: `stationId=${stationId}&stationName=${encodeURIComponent(stationName)}&interval=${interval}&sensorType=${sensorType}`
+                    body: `stationId=${stationId}&stationName=${encodeURIComponent(stationName)}&interval=${interval}&sensorType=${sensorType}&sensorToBottomDistance=${sensorToBottomDistance}&sensorToZeroBlokDistance=${sensorToZeroBlokDistance}`
                 });
 
                 if (response.ok) {
@@ -417,15 +501,56 @@
             }
         }
 
+        // Switch between different graph types
+        function switchGraph(type) {
+            currentGraphType = type;
+            
+            // Update active button
+            document.querySelectorAll('.graph-selector button').forEach(btn => {
+                btn.classList.remove('active');
+            });
+            document.getElementById(`graph${type}`).classList.add('active');
+            
+            // Redraw graph with current data
+            if (historicalData.length > 0) {
+                drawGraph(historicalData);
+            }
+        }
+
         // Graph functions
         function parseCSVData(csv) {
             const lines = csv.split('\n');
             const data = [];
-            for (let i = 1; i < lines.length; i++) { // Skip header
+            
+            // Check CSV format and find column indexes
+            const headers = lines[0].split(',');
+            const dateTimeIndex = headers.findIndex(h => h.includes('DateTime'));
+            const blokIndex = headers.findIndex(h => h.includes('Blok'));
+            const paritIndex = headers.findIndex(h => h.includes('Parit'));
+            const rawDistanceIndex = headers.findIndex(h => h.includes('Raw Distance'));
+            
+            for (let i = 1; i < lines.length; i++) {
                 const line = lines[i].trim();
                 if (line) {
-                    const [, , datetime, level] = line.split(',');
-                    data.push({ datetime, level: parseFloat(level) });
+                    const parts = line.split(',');
+                    // Handle both old and new CSV formats
+                    if (blokIndex !== -1 && paritIndex !== -1 && rawDistanceIndex !== -1) {
+                        data.push({
+                            datetime: parts[dateTimeIndex],
+                            levelBlok: parseFloat(parts[blokIndex]),
+                            levelParit: parseFloat(parts[paritIndex]),
+                            rawDistance: parseFloat(parts[rawDistanceIndex])
+                        });
+                    } else {
+                        // Legacy format - convert to new format
+                        const level = parseFloat(parts[3]);
+                        data.push({
+                            datetime: parts[2],
+                            levelBlok: level,
+                            levelParit: level,
+                            rawDistance: 0
+                        });
+                    }
                 }
             }
             return data.slice(-144); // Get last 144 readings
@@ -445,11 +570,23 @@
             svg.setAttribute('width', width);
             svg.setAttribute('height', height);
 
+            // Get the right data based on current graph type
+            const getValueFromData = (item) => {
+                switch(currentGraphType) {
+                    case 'Blok': return item.levelBlok;
+                    case 'Parit': return item.levelParit;
+                    case 'Raw': return item.rawDistance;
+                    default: return item.levelBlok;
+                }
+            };
+
             // Calculate scales
             const xScale = (width - 2 * padding) / (data.length - 1);
-            const yMin = Math.min(...data.map(d => d.level));
-            const yMax = Math.max(...data.map(d => d.level));
-            const yScale = (height - 2 * padding) / (yMax - yMin);
+            const values = data.map(d => getValueFromData(d));
+            const yMin = Math.min(...values);
+            const yMax = Math.max(...values);
+            const yRange = yMax - yMin;
+            const yScale = (height - 2 * padding) / (yRange > 0 ? yRange : 1);
 
             // Draw axes
             const xAxis = document.createElementNS('http://www.w3.org/2000/svg', 'path');
@@ -464,7 +601,7 @@
 
             // Draw y-axis labels
             for (let i = 0; i <= 5; i++) {
-                const y = yMin + (yMax - yMin) * i / 5;
+                const y = yMin + (yRange > 0 ? yRange : 1) * i / 5;
                 const label = document.createElementNS('http://www.w3.org/2000/svg', 'text');
                 label.textContent = y.toFixed(1);
                 label.setAttribute('x', padding - 5);
@@ -488,11 +625,21 @@
                 svg.appendChild(label);
             }
 
+            // Set graph color based on type
+            let graphColor;
+            switch(currentGraphType) {
+                case 'Blok': graphColor = '#28a745'; break;
+                case 'Parit': graphColor = '#17a2b8'; break;
+                case 'Raw': graphColor = '#6c757d'; break;
+                default: graphColor = '#007bff';
+            }
+
             // Draw data points and lines
             let pathD = '';
             for (let i = 0; i < data.length; i++) {
                 const x = padding + i * xScale;
-                const y = height - padding - (data[i].level - yMin) * yScale;
+                const value = getValueFromData(data[i]);
+                const y = height - padding - (value - yMin) * yScale;
 
                 if (i === 0) {
                     pathD = `M${x},${y}`;
@@ -504,8 +651,9 @@
                 point.setAttribute('cx', x);
                 point.setAttribute('cy', y);
                 point.setAttribute('r', '3');
-                point.setAttribute('class', 'graph-point');
-                point.setAttribute('data-value', `${data[i].datetime}: ${data[i].level} cm`);
+                point.setAttribute('fill', graphColor);
+                point.setAttribute('stroke', graphColor);
+                point.setAttribute('data-value', `${data[i].datetime}: ${value.toFixed(2)} cm`);
                 
                 // Add hover effect
                 point.addEventListener('mouseover', function(e) {
@@ -530,7 +678,9 @@
             // Draw line connecting points
             const path = document.createElementNS('http://www.w3.org/2000/svg', 'path');
             path.setAttribute('d', pathD);
-            path.setAttribute('class', 'graph-line');
+            path.setAttribute('stroke', graphColor);
+            path.setAttribute('stroke-width', '2');
+            path.setAttribute('fill', 'none');
             svg.appendChild(path);
 
             container.appendChild(svg);
