@@ -1,9 +1,7 @@
 #include <Arduino.h>
 #include <WiFi.h>
 #include <WebServer.h>
-#include "FS.h"
-#include "SD.h"
-#include <SPI.h>
+#include <SPIFFS.h>
 #include <RTClib.h>
 #include <ArduinoJson.h>
 #include <esp_task_wdt.h>
@@ -13,11 +11,6 @@
 // Pin Definitions for ESP32-DOIT-DevKit-V1
 #define TRIGGER_PIN 2 // GPIO26
 #define ECHO_PIN 4    // GPIO27
-// SD Card SPI Pins
-#define SD_CS 5    // GPIO5 (CS)
-#define SD_MOSI 23 // GPIO23 (MOSI)
-#define SD_MISO 19 // GPIO19 (MISO)
-#define SD_SCK 18  // GPIO18 (SCK)
 // RTC I2C Pins
 #define RTC_SDA 21 // GPIO21 (SDA)
 #define RTC_SCL 22 // GPIO22 (SCL)
@@ -28,6 +21,7 @@
 // Constants
 #define WDT_TIMEOUT 180 // 3 minutes watchdog timeout
 #define CONFIG_FILE "/config.json"
+#define DATA_FILE "/data.csv"
 #define MAX_CLIENTS 10
 
 #define SERIAL_BUFFER_SIZE 20
@@ -87,7 +81,7 @@ unsigned long startTime = 0;
 const unsigned long MINIMUM_INTERVAL = 12000; // 12 seconds in milliseconds
 
 // Function declarations
-bool setupSD();
+bool setupSPIFFS();
 bool setupRTC();
 void setupWiFi();
 void setupWebServer();
@@ -132,15 +126,12 @@ void setup()
     pinMode(TRIGGER_PIN, OUTPUT);
     pinMode(ECHO_PIN, INPUT);
 
-    // Initialize SPI for SD card
-    SPI.begin(SD_SCK, SD_MISO, SD_MOSI, SD_CS);
-
     // Initialize I2C for RTC
     Wire.begin(RTC_SDA, RTC_SCL);
 
-    if (!setupSD())
+    if (!setupSPIFFS())
     {
-        Serial.println("SD Card initialization failed! Please check wiring.");
+        Serial.println("SPIFFS initialization failed!");
         delay(3000);
         ESP.restart();
     }
@@ -229,22 +220,28 @@ void loop()
     resetWatchdog();
 }
 
-bool setupSD()
+bool setupSPIFFS()
 {
-    if (!SD.begin(SD_CS))
+    if (!SPIFFS.begin(true)) // true = format if mount fails
     {
-        Serial.println("Card Mount Failed");
+        Serial.println("SPIFFS Mount Failed");
         return false;
     }
 
-    uint8_t cardType = SD.cardType();
-    if (cardType == CARD_NONE)
-    {
-        Serial.println("No SD card attached");
-        return false;
+    Serial.println("SPIFFS mounted successfully");
+    
+    // List files for debugging
+    Serial.println("Files in SPIFFS:");
+    File root = SPIFFS.open("/");
+    File file = root.openNextFile();
+    while(file){
+        Serial.print("  FILE: ");
+        Serial.print(file.name());
+        Serial.print("  SIZE: ");
+        Serial.println(file.size());
+        file = root.openNextFile();
     }
-
-    Serial.println("SD Card mounted successfully");
+    
     return true;
 }
 
@@ -295,9 +292,9 @@ void setupWebServer()
 
 void handleRoot()
 {
-    if (SD.exists("/index.html"))
+    if (SPIFFS.exists("/index.html"))
     {
-        File file = SD.open("/index.html", "r");
+        File file = SPIFFS.open("/index.html", "r");
         if (file)
         {
             server.streamFile(file, "text/html");
@@ -310,15 +307,15 @@ void handleRoot()
     }
     else
     {
-        server.send(404, "text/plain", "File not found");
+        server.send(404, "text/plain", "File not found - index.html missing from SPIFFS");
     }
 }
 
 void handleGetData()
 {
-    if (SD.exists("/data.csv"))
+    if (SPIFFS.exists(DATA_FILE))
     {
-        File file = SD.open("/data.csv", "r");
+        File file = SPIFFS.open(DATA_FILE, "r");
         if (file)
         {
             server.streamFile(file, "text/csv");
@@ -337,10 +334,10 @@ void handleGetData()
 
 void handleDeleteData()
 {
-    if (SD.remove("/data.csv"))
+    if (SPIFFS.remove(DATA_FILE))
     {
         // Create new file with headers
-        File file = SD.open("/data.csv", "w");
+        File file = SPIFFS.open(DATA_FILE, "w");
         if (file)
         {
             file.println("Station ID,Station Name,DateTime,Water Level (Blok) (cm),Water Level (Parit) (cm),Raw Distance (cm)");
@@ -557,12 +554,12 @@ void handleGetConfig()
 
 bool loadConfig()
 {
-    if (!SD.exists(CONFIG_FILE))
+    if (!SPIFFS.exists(CONFIG_FILE))
     {
         return false;
     }
 
-    File file = SD.open(CONFIG_FILE, "r");
+    File file = SPIFFS.open(CONFIG_FILE, "r");
     if (!file)
     {
         return false;
@@ -602,7 +599,7 @@ bool loadConfig()
 
 bool saveConfig()
 {
-    File file = SD.open(CONFIG_FILE, "w");
+    File file = SPIFFS.open(CONFIG_FILE, "w");
     if (!file)
     {
         return false;
@@ -761,9 +758,9 @@ void measureWaterLevel()
 void logData(float levelBlok, float levelParit)
 {
     // Create the data file with headers if it doesn't exist
-    if (!SD.exists("/data.csv"))
+    if (!SPIFFS.exists(DATA_FILE))
     {
-        File file = SD.open("/data.csv", "w");
+        File file = SPIFFS.open(DATA_FILE, "w");
         if (file)
         {
             file.println("Station ID,Station Name,DateTime,Water Level (Blok) (cm),Water Level (Parit) (cm),Raw Distance (cm)");
@@ -771,7 +768,7 @@ void logData(float levelBlok, float levelParit)
         }
     }
     
-    File file = SD.open("/data.csv", "a");
+    File file = SPIFFS.open(DATA_FILE, "a");
     if (!file)
     {
         Serial.println("Failed to open data file for logging");
