@@ -1,5 +1,6 @@
 <!DOCTYPE html>
 <html lang="en">
+
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
@@ -35,7 +36,7 @@
             background: white;
             border-radius: 8px;
             padding: 20px;
-            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+            box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
         }
 
         .form-group {
@@ -48,7 +49,8 @@
             font-weight: bold;
         }
 
-        .form-group input, .form-group select {
+        .form-group input,
+        .form-group select {
             width: 100%;
             padding: 8px;
             border: 1px solid #ddd;
@@ -63,6 +65,8 @@
             border-radius: 4px;
             cursor: pointer;
             font-size: 14px;
+            margin-right: 10px;
+            margin-bottom: 10px;
         }
 
         .btn:hover {
@@ -75,6 +79,14 @@
 
         .btn-danger:hover {
             background: #c82333;
+        }
+
+        .btn-success {
+            background: #28a745;
+        }
+
+        .btn-success:hover {
+            background: #218838;
         }
 
         .alert {
@@ -93,6 +105,12 @@
             background: #f8d7da;
             color: #721c24;
             border: 1px solid #f5c6cb;
+        }
+
+        .alert-info {
+            background: #d1ecf1;
+            color: #0c5460;
+            border: 1px solid #bee5eb;
         }
 
         .current-level {
@@ -149,6 +167,50 @@
             font-family: monospace;
         }
 
+        .mode-indicator {
+            display: inline-block;
+            padding: 4px 8px;
+            border-radius: 4px;
+            font-size: 12px;
+            font-weight: bold;
+            text-transform: uppercase;
+        }
+
+        .mode-offline {
+            background: #ffc107;
+            color: #212529;
+        }
+
+        .mode-online {
+            background: #28a745;
+            color: white;
+        }
+
+        .connection-status {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            margin-bottom: 15px;
+        }
+
+        .status-indicator {
+            width: 10px;
+            height: 10px;
+            border-radius: 50%;
+        }
+
+        .status-connected {
+            background: #28a745;
+        }
+
+        .status-disconnected {
+            background: #dc3545;
+        }
+
+        .status-warning {
+            background: #ffc107;
+        }
+
         /* Graph styles */
         .graph-container {
             height: 300px;
@@ -189,21 +251,39 @@
         .tooltip {
             position: absolute;
             padding: 8px;
-            background: rgba(0,0,0,0.8);
+            background: rgba(0, 0, 0, 0.8);
             color: white;
             border-radius: 4px;
             font-size: 12px;
             pointer-events: none;
         }
+
+        .online-settings {
+            border: 2px solid #007bff;
+            border-radius: 8px;
+            padding: 15px;
+            margin-top: 15px;
+        }
+
+        .online-settings h4 {
+            color: #007bff;
+            margin-bottom: 15px;
+        }
     </style>
 </head>
+
 <body>
     <div class="container">
         <h1>Water Level Monitor</h1>
-        
+
         <div class="grid">
             <div class="card">
                 <h2>Hasil Pengukuran</h2>
+                <div class="connection-status">
+                    <div id="modeIndicator" class="mode-indicator">--</div>
+                    <div id="connectionStatus" class="status-indicator"></div>
+                    <span id="connectionText">--</span>
+                </div>
                 <div class="level-display">
                     <div class="level-card blok">
                         <h3>Water Level (Blok)</h3>
@@ -253,6 +333,44 @@
                     <label>Jarak Permukaan Air ke 0 Blok (cm):</label>
                     <input type="number" id="sensorToZeroBlokDistance" step="0.1">
                 </div>
+
+                <!-- Operation Mode Settings -->
+                <div class="form-group">
+                    <label>Operation Mode:</label>
+                    <select id="operationMode" class="form-control" onchange="toggleOnlineSettings()">
+                        <option value="OFFLINE">Offline Mode</option>
+                        <option value="ONLINE">Online Mode</option>
+                    </select>
+                </div>
+
+                <div id="onlineSettings" class="online-settings" style="display: none;">
+                    <h4>Online Mode Settings</h4>
+                    <div class="form-group">
+                        <label>WiFi SSID:</label>
+                        <input type="text" id="wifiSSID" placeholder="Custom WiFi network name">
+                    </div>
+                    <div class="form-group">
+                        <label>WiFi Password:</label>
+                        <input type="password" id="wifiPassword" placeholder="WiFi password">
+                    </div>
+                    <div class="form-group">
+                        <label>API Endpoint:</label>
+                        <input type="url" id="apiEndpoint" placeholder="https://api.example.com/water-level">
+                    </div>
+                    <div class="form-group">
+                        <label>API Token:</label>
+                        <input type="text" id="apiToken" placeholder="Bearer token (optional)">
+                    </div>
+                    <div class="form-group">
+                        <label>Data Sync Interval (hours):</label>
+                        <input type="number" id="dataSyncInterval" min="1" value="1">
+                    </div>
+                    <div class="alert alert-info">
+                        <strong>Note:</strong> Device will fallback to default WiFi "water_level" with password
+                        "w4t3r_l3v3l" if custom WiFi fails.
+                    </div>
+                </div>
+
                 <button onclick="saveSettings()" class="btn">Save Settings</button>
             </div>
 
@@ -293,7 +411,7 @@
 
         <div class="grid">
             <div class="card">
-                <h2>Connected Devices</h2>
+                <h2>Connected Devices / Network Status</h2>
                 <ul id="connectedDevices"></ul>
             </div>
 
@@ -303,6 +421,12 @@
                 <div class="form-group">
                     <button onclick="downloadData()" class="btn">Download Data</button>
                     <button onclick="deleteData()" class="btn btn-danger">Delete Data</button>
+                </div>
+                <div id="onlineDataInfo" style="display: none;">
+                    <div class="alert alert-info">
+                        <strong>Online Mode:</strong> Data is automatically sent to API when internet is available.
+                        Local storage is used as backup.
+                    </div>
                 </div>
             </div>
         </div>
@@ -326,21 +450,67 @@
             return date.toLocaleString();
         }
 
+        function toggleOnlineSettings() {
+            const mode = document.getElementById('operationMode').value;
+            const onlineSettings = document.getElementById('onlineSettings');
+            const onlineDataInfo = document.getElementById('onlineDataInfo');
+
+            if (mode === 'ONLINE') {
+                onlineSettings.style.display = 'block';
+                onlineDataInfo.style.display = 'block';
+            } else {
+                onlineSettings.style.display = 'none';
+                onlineDataInfo.style.display = 'none';
+            }
+        }
+
         let historicalData = [];
-        let currentGraphType = 'Blok'; // Default graph type
+        let currentGraphType = 'Blok';
 
         // Data fetching functions
         async function fetchCurrentLevel() {
             try {
                 const response = await fetch('/currentLevel');
                 const data = await response.json();
-                
+
                 document.getElementById('currentLevelBlok').textContent = `${data.waterLevelBlok.toFixed(2)} cm`;
                 document.getElementById('currentLevelParit').textContent = `${data.waterLevelParit.toFixed(2)} cm`;
                 document.getElementById('currentRawDistance').textContent = `${data.rawDistance.toFixed(2)} cm`;
                 document.getElementById('currentDateTime').textContent = formatDateTime(new Date());
+
+                // Update mode and connection status
+                const modeIndicator = document.getElementById('modeIndicator');
+                const connectionStatus = document.getElementById('connectionStatus');
+                const connectionText = document.getElementById('connectionText');
+
+                modeIndicator.textContent = data.operationMode || 'OFFLINE';
+                modeIndicator.className = 'mode-indicator ' +
+                    (data.operationMode === 'ONLINE' ? 'mode-online' : 'mode-offline');
+
+                if (data.operationMode === 'ONLINE') {
+                    if (data.internetConnection) {
+                        connectionStatus.className = 'status-indicator status-connected';
+                        connectionText.textContent = 'Connected to Internet';
+                    } else {
+                        connectionStatus.className = 'status-indicator status-warning';
+                        connectionText.textContent = 'WiFi Connected, No Internet';
+                    }
+                } else {
+                    connectionStatus.className = 'status-indicator status-disconnected';
+                    connectionText.textContent = 'Hotspot Mode';
+                }
             } catch (error) {
                 console.error('Error fetching current level:', error);
+            }
+        }
+
+        async function fetchStorageInfo() {
+            try {
+                const response = await fetch('/storageInfo');
+                const data = await response.json();
+                console.log(`Storage: ${data.percentUsed}% used, ${data.recordCount} records`);
+            } catch (error) {
+                console.error('Error fetching storage info:', error);
             }
         }
 
@@ -365,6 +535,14 @@
                 document.getElementById('sensorType').value = config.sensorType === 1 ? 'A01NYUB' : 'HCSR04';
                 document.getElementById('sensorToBottomDistance').value = config.sensorToBottomDistance;
                 document.getElementById('sensorToZeroBlokDistance').value = config.sensorToZeroBlokDistance;
+                document.getElementById('operationMode').value = config.operationMode || 'OFFLINE';
+                document.getElementById('wifiSSID').value = config.wifiSSID || '';
+                document.getElementById('wifiPassword').value = config.wifiPassword || '';
+                document.getElementById('apiEndpoint').value = config.apiEndpoint || '';
+                document.getElementById('apiToken').value = config.apiToken || '';
+                document.getElementById('dataSyncInterval').value = config.dataSyncInterval || 1;
+
+                toggleOnlineSettings();
             } catch (error) {
                 console.error('Error fetching config:', error);
             }
@@ -401,6 +579,12 @@
             const sensorType = document.getElementById('sensorType').value;
             const sensorToBottomDistance = document.getElementById('sensorToBottomDistance').value;
             const sensorToZeroBlokDistance = document.getElementById('sensorToZeroBlokDistance').value;
+            const operationMode = document.getElementById('operationMode').value;
+            const wifiSSID = document.getElementById('wifiSSID').value;
+            const wifiPassword = document.getElementById('wifiPassword').value;
+            const apiEndpoint = document.getElementById('apiEndpoint').value;
+            const apiToken = document.getElementById('apiToken').value;
+            const dataSyncInterval = document.getElementById('dataSyncInterval').value;
 
             try {
                 const response = await fetch('/settings', {
@@ -408,11 +592,19 @@
                     headers: {
                         'Content-Type': 'application/x-www-form-urlencoded',
                     },
-                    body: `stationId=${stationId}&stationName=${encodeURIComponent(stationName)}&interval=${interval}&sensorType=${sensorType}&sensorToBottomDistance=${sensorToBottomDistance}&sensorToZeroBlokDistance=${sensorToZeroBlokDistance}`
+                    body: `stationId=${stationId}&stationName=${encodeURIComponent(stationName)}&interval=${interval}&sensorType=${sensorType}&sensorToBottomDistance=${sensorToBottomDistance}&sensorToZeroBlokDistance=${sensorToZeroBlokDistance}&operationMode=${operationMode}&wifiSSID=${encodeURIComponent(wifiSSID)}&wifiPassword=${encodeURIComponent(wifiPassword)}&apiEndpoint=${encodeURIComponent(apiEndpoint)}&apiToken=${encodeURIComponent(apiToken)}&dataSyncInterval=${dataSyncInterval}`
                 });
 
                 if (response.ok) {
-                    showAlert('settingsAlert', 'Settings saved successfully', 'success');
+                    const responseText = await response.text();
+                    showAlert('settingsAlert', responseText, 'success');
+                    if (responseText.includes('Restart required')) {
+                        setTimeout(() => {
+                            if (confirm('Settings saved. Restart device now to apply mode changes?')) {
+                                restartDevice();
+                            }
+                        }, 2000);
+                    }
                 } else {
                     showAlert('settingsAlert', 'Failed to save settings', 'danger');
                 }
@@ -504,14 +696,12 @@
         // Switch between different graph types
         function switchGraph(type) {
             currentGraphType = type;
-            
-            // Update active button
+
             document.querySelectorAll('.graph-selector button').forEach(btn => {
                 btn.classList.remove('active');
             });
             document.getElementById(`graph${type}`).classList.add('active');
-            
-            // Redraw graph with current data
+
             if (historicalData.length > 0) {
                 drawGraph(historicalData);
             }
@@ -521,19 +711,17 @@
         function parseCSVData(csv) {
             const lines = csv.split('\n');
             const data = [];
-            
-            // Check CSV format and find column indexes
+
             const headers = lines[0].split(',');
             const dateTimeIndex = headers.findIndex(h => h.includes('DateTime'));
             const blokIndex = headers.findIndex(h => h.includes('Blok'));
             const paritIndex = headers.findIndex(h => h.includes('Parit'));
             const rawDistanceIndex = headers.findIndex(h => h.includes('Raw Distance'));
-            
+
             for (let i = 1; i < lines.length; i++) {
                 const line = lines[i].trim();
                 if (line) {
                     const parts = line.split(',');
-                    // Handle both old and new CSV formats
                     if (blokIndex !== -1 && paritIndex !== -1 && rawDistanceIndex !== -1) {
                         data.push({
                             datetime: parts[dateTimeIndex],
@@ -542,7 +730,6 @@
                             rawDistance: parseFloat(parts[rawDistanceIndex])
                         });
                     } else {
-                        // Legacy format - convert to new format
                         const level = parseFloat(parts[3]);
                         data.push({
                             datetime: parts[2],
@@ -553,7 +740,7 @@
                     }
                 }
             }
-            return data.slice(-144); // Get last 144 readings
+            return data.slice(-144);
         }
 
         function drawGraph(data) {
@@ -562,17 +749,14 @@
             const height = container.clientHeight;
             const padding = 40;
 
-            // Clear previous graph
             container.innerHTML = '';
 
-            // Create SVG element
             const svg = document.createElementNS('http://www.w3.org/2000/svg', 'svg');
             svg.setAttribute('width', width);
             svg.setAttribute('height', height);
 
-            // Get the right data based on current graph type
             const getValueFromData = (item) => {
-                switch(currentGraphType) {
+                switch (currentGraphType) {
                     case 'Blok': return item.levelBlok;
                     case 'Parit': return item.levelParit;
                     case 'Raw': return item.rawDistance;
@@ -580,7 +764,6 @@
                 }
             };
 
-            // Calculate scales
             const xScale = (width - 2 * padding) / (data.length - 1);
             const values = data.map(d => getValueFromData(d));
             const yMin = Math.min(...values);
@@ -625,9 +808,8 @@
                 svg.appendChild(label);
             }
 
-            // Set graph color based on type
             let graphColor;
-            switch(currentGraphType) {
+            switch (currentGraphType) {
                 case 'Blok': graphColor = '#28a745'; break;
                 case 'Parit': graphColor = '#17a2b8'; break;
                 case 'Raw': graphColor = '#6c757d'; break;
@@ -654,9 +836,8 @@
                 point.setAttribute('fill', graphColor);
                 point.setAttribute('stroke', graphColor);
                 point.setAttribute('data-value', `${data[i].datetime}: ${value.toFixed(2)} cm`);
-                
-                // Add hover effect
-                point.addEventListener('mouseover', function(e) {
+
+                point.addEventListener('mouseover', function (e) {
                     const tooltip = document.createElement('div');
                     tooltip.className = 'tooltip';
                     tooltip.textContent = this.getAttribute('data-value');
@@ -664,8 +845,8 @@
                     tooltip.style.top = (e.pageY - 10) + 'px';
                     document.body.appendChild(tooltip);
                 });
-                
-                point.addEventListener('mouseout', function() {
+
+                point.addEventListener('mouseout', function () {
                     const tooltip = document.querySelector('.tooltip');
                     if (tooltip) {
                         tooltip.remove();
@@ -675,7 +856,6 @@
                 svg.appendChild(point);
             }
 
-            // Draw line connecting points
             const path = document.createElementNS('http://www.w3.org/2000/svg', 'path');
             path.setAttribute('d', pathD);
             path.setAttribute('stroke', graphColor);
@@ -697,7 +877,6 @@
             }
         }
 
-        // Initialize date/time inputs
         function initializeDateTimeInputs() {
             const now = new Date();
             const dateStr = now.toISOString().split('T')[0];
@@ -706,10 +885,8 @@
             document.getElementById('timeInput').value = timeStr;
         }
 
-        // Event listeners
         document.getElementById('restartBtn').addEventListener('click', restartDevice);
 
-        // Initialize and start periodic updates
         async function initialize() {
             initializeDateTimeInputs();
             await Promise.all([
@@ -722,7 +899,6 @@
             ]);
         }
 
-        // Update data periodically
         function startPeriodicUpdates() {
             setInterval(async () => {
                 await Promise.all([
@@ -732,11 +908,11 @@
                     fetchSerialData(),
                     fetchAndUpdateGraph()
                 ]);
-            }, 5000); // Update every 5 seconds
+            }, 5000);
         }
 
-        // Start the application
         initialize().then(startPeriodicUpdates);
     </script>
 </body>
+
 </html>

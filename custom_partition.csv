@@ -1,6 +1,6 @@
-# Name,     Type, SubType, Offset,   Size,    
+# Name,     Type, SubType, Offset,   Size,    Flags
+# ESP32-WROOM-32 4MB Flash - Optimized for maximum data storage
 nvs,        data, nvs,     0x9000,   0x5000,
 otadata,    data, ota,     0xe000,   0x2000,
-app0,       app,  factory, 0x10000,  0xE1000,  
-storage,    data, spiffs,  0xF1000,  0x30F000
-
+app0,       app,  factory, 0x10000,  0x140000,
+storage,    data, spiffs,  0x150000, 0x2B0000,
